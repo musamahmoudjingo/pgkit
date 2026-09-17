@@ -1,0 +1,50 @@
+[package]
+name = "pgkit"
+description = "Utilities for working with databases (postgres)."
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+readme = "README.md"
+keywords = ["postgres", "sqlx", "query-builder", "pagination", "database"]
+categories = ["database"]
+
+[lints]
+workspace = true
+
+[dependencies]
+# Exact pin: the macros emit paths into `pgkit::__private`, so the two crates
+# only work as a matched pair. Bump both together.
+pgkit-derive  = { path = "../pgkit-derive", version = "=0.1.0" }
+sqlx         = { version = "0.9", default-features = false, features = ["postgres", "json", "chrono", "uuid", "rust_decimal"] }
+strum        = { version = "0.28", features = ["derive"] }
+serde        = { version = "1.0", features = ["derive"], optional = true }
+serde_json   = { version = "1.0", default-features = false, features = ["std"], optional = true }
+base64       = { version = "0.22", optional = true }
+sha2         = { version = "0.10", optional = true }
+uuid         = { version = "1.18.1", features = ["v7", "serde"], optional = true }
+chrono       = { version = "0.4.40", features = ["serde"], optional = true }
+rust_decimal = { version = "1.39.0", features = ["macros", "serde"], optional = true }
+thiserror    = { version = "2.0", optional = true }
+# Only `tokio::time::sleep` is used (for retry backoff).
+tokio        = { version = "1.42.0", features = ["time"], optional = true }
+tracing      = { version = "0.1.41", optional = true }
+
+[dev-dependencies]
+sqlx         = { version = "0.9", default-features = false, features = ["derive"] }
+tokio        = { version = "1.42.0", features = ["macros", "rt"] }
+async-trait  = "0.1.88"
+chrono       = "0.4.40"
+
+[features]
+default             = ["partial-row", "pagination", "repository-error", "retry"]
+partial-row         = []
+serde               = ["dep:serde"]
+pagination          = ["offset-pagination", "cursor-pagination"]
+offset-pagination   = []
+cursor-pagination   = ["serde", "dep:base64", "dep:sha2", "dep:uuid", "dep:thiserror", "dep:serde_json", "dep:chrono", "dep:rust_decimal"]
+repository-error    = ["dep:thiserror", "cursor-pagination"]
+retry               = ["repository-error", "dep:tokio", "dep:tracing"]

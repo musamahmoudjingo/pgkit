@@ -1,0 +1,17 @@
+error[E0277]: the trait bound `PartialDemo: PaginatedRow<i32, DemoColumn>` is not satisfied
+  --> tests/compile_tests/skip_paginated_row_omits_impl.rs:18:24
+   |
+18 |     assert_paginated::<PartialDemo>();
+   |                        ^^^^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `PaginatedRow<i32, DemoColumn>` is not implemented for `PartialDemo`
+  --> tests/compile_tests/skip_paginated_row_omits_impl.rs:4:10
+   |
+ 4 | #[derive(PgKit)]
+   |          ^^^^^
+note: required by a bound in `assert_paginated`
+  --> tests/compile_tests/skip_paginated_row_omits_impl.rs:15:24
+   |
+15 | fn assert_paginated<T: PaginatedRow<i32, DemoColumn>>() {}
+   |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `assert_paginated`
+   = note: this error originates in the derive macro `PgKit` (in Nightly builds, run with -Z macro-backtrace for more info)

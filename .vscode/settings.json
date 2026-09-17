@@ -1,0 +1,12 @@
+{
+  "cSpell.words": [
+    "chrono",
+    "impls",
+    "pgkit",
+    "rustls",
+    "serde",
+    "sqlx",
+    "thiserror",
+    "tsquery"
+  ]
+}

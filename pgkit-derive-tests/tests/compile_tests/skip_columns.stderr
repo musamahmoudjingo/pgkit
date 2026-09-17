@@ -1,0 +1,5 @@
+error: skip(columns) is not allowed: the table and paginated_row emitters depend on the column enum
+ --> tests/compile_tests/skip_columns.rs:4:35
+  |
+4 | #[pgkit(table_name = "demo", skip(columns))]
+  |                                   ^^^^^^^

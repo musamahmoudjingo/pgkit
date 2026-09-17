@@ -1,0 +1,5 @@
+error: skip(table) is not allowed: the table struct is derived entirely from `table_name` and is named by the column enum's DatabaseTableColumn impl; it is always emitted
+ --> tests/compile_tests/skip_table.rs:4:35
+  |
+4 | #[pgkit(table_name = "demo", skip(table))]
+  |                                   ^^^^^

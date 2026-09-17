@@ -1,0 +1,5 @@
+error: #[pgkit::retry] requires an async fn or an #[async_trait] method (the retry loop awaits between attempts)
+ --> tests/compile_tests/retry_non_async.rs:2:1
+  |
+2 | fn not_async() -> pgkit::errors::RepositoryResult<()> {
+  | ^^

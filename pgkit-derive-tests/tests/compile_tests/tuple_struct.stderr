@@ -1,0 +1,5 @@
+error: PgKit requires a struct with named fields
+ --> tests/compile_tests/tuple_struct.rs:4:1
+  |
+4 | #[pgkit(table_name = "demo")]
+  | ^

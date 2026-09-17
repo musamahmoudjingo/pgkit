@@ -1,0 +1,17 @@
+[package]
+name = "pgkit-derive-tests"
+description = "Tests for the pgkit-derive crate."
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+pgkit = { path = "../pgkit", features = ["pagination", "retry"] }
+trybuild = "1.0"

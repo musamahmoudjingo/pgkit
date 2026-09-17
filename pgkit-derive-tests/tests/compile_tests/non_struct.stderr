@@ -1,0 +1,5 @@
+error: PgKit can only be derived on structs with named fields
+ --> tests/compile_tests/non_struct.rs:4:1
+  |
+4 | #[pgkit(table_name = "demo")]
+  | ^

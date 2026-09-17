@@ -1,0 +1,29 @@
+[package]
+name = "pgkit-derive"
+description = "Derive macros for pgkit (Utilities for working with databases - postgres)."
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+readme = "README.md"
+keywords = ["postgres", "sqlx", "query-builder", "pagination", "database"]
+categories = ["database"]
+
+[lints]
+workspace = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "2.0", features = ["full"] }
+quote = "1.0"
+proc-macro2 = "1.0"
+
+[dev-dependencies]
+pgkit    = { path = "../pgkit" }
+chrono  = "0.4.40"
+tracing = "0.1.41"

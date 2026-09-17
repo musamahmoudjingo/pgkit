@@ -1,0 +1,5 @@
+error: unknown backoff "quadratic"; expected one of: "fixed", "linear", "exponential"
+ --> tests/compile_tests/retry_invalid_backoff.rs:1:37
+  |
+1 | #[pgkit::retry(tries = 2, backoff = "quadratic")]
+  |                                     ^^^^^^^^^^^

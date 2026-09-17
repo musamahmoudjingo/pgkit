@@ -1,0 +1,5 @@
+error: tries must be at least 1
+ --> tests/compile_tests/retry_zero_tries.rs:1:24
+  |
+1 | #[pgkit::retry(tries = 0)]
+  |                        ^

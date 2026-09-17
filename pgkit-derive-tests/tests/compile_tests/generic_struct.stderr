@@ -1,0 +1,5 @@
+error: PgKit cannot be derived on a generic type. The generated impls (DatabaseTable, DatabaseTableColumn, FromRow, PaginatedRow) are all non-generic; derive on a concrete row type instead.
+ --> tests/compile_tests/generic_struct.rs:5:19
+  |
+5 | pub struct Generic<T> {
+  |                   ^^^

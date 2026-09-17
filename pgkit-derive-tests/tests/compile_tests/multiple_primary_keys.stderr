@@ -1,0 +1,11 @@
+error: PgKit requires exactly one #[pgkit(primary_key)] field; found more than one
+ --> tests/compile_tests/multiple_primary_keys.rs:8:13
+  |
+8 |     #[pgkit(primary_key)]
+  |             ^^^^^^^^^^^
+
+error: first #[pgkit(primary_key)] is here
+ --> tests/compile_tests/multiple_primary_keys.rs:6:13
+  |
+6 |     #[pgkit(primary_key)]
+  |             ^^^^^^^^^^^

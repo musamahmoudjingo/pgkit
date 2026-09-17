@@ -1,0 +1,5 @@
+error: embed alias `comms_customer_notification_preferences_notification_template_rendering_language` is 80 bytes, over PostgreSQL's 63-byte identifier limit; the truncated alias would make `from_included_columns` silently decode nothing; shorten the table or column name
+ --> tests/compile_tests/embed_alias_too_long.rs:8:9
+  |
+8 |     pub notification_template_rendering_language: String,
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
