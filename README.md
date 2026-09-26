@@ -35,6 +35,9 @@ You write the query, pgkit helps you build it safely and sqlx runs it.
   attached.
 - **Full-text search helper** that turns user input into a safe `to_tsquery`
   string.
+- **Connection pool helper** that opens a `PgPool` with production-safe
+  defaults: session timeouts against runaway queries, a warm floor of idle
+  connections, and connection recycling.
 
 ## Installation
 
@@ -339,6 +342,64 @@ assert_eq!(build_tsquery("red shoe").as_deref(), Some("red:* & shoe:*"));
 assert_eq!(build_tsquery("   "), None);
 ```
 
+## Connection pool
+
+`pool::get` opens a `PgPool` from your `PgConnectOptions`, and a `PoolConfig`.
+
+```rust,no_run
+use pgkit::pool::{self, PoolConfig};
+use sqlx::postgres::PgConnectOptions;
+
+async fn connect() -> Result<sqlx::PgPool, sqlx::Error> {
+    let options = PgConnectOptions::new()
+        .host("localhost")
+        .port(5432)
+        .username("app")
+        .password("password")
+        .database("app");
+
+    pool::get(options, PoolConfig {
+        max_connections: 20,
+        ..PoolConfig::default()
+    })
+    .await
+}
+```
+
+The defaults are meant for a server answering requests: a 30-second
+`statement_timeout` and a 60-second `idle_in_transaction_session_timeout` are
+set on every session, so a runaway query or an abandoned transaction cannot
+hold a pooled connection and exhaust the pool. Connections are recycled after
+30 minutes, idle ones closed after 10, and a small warm floor (a quarter of
+`max_connections`, at most 5) is kept open.
+
+The session timeouts follow Postgres's own convention: `Duration::ZERO`
+disables one. A migration runner wants both off, so a long migration is not
+killed mid-flight:
+
+```rust,no_run
+use std::time::Duration;
+use pgkit::pool::{self, PoolConfig};
+use sqlx::postgres::PgConnectOptions;
+
+async fn migration_pool() -> Result<sqlx::PgPool, sqlx::Error> {
+    let options = PgConnectOptions::new()
+        .host("localhost")
+        .port(5432)
+        .username("app")
+        .password("password")
+        .database("app");
+
+    pool::get(options, PoolConfig {
+        max_connections: 2,
+        statement_timeout: Duration::ZERO,
+        idle_tx_timeout: Duration::ZERO,
+        ..PoolConfig::default()
+    })
+    .await
+}
+```
+
 ## Feature flags
 
 All of these are on by default.
@@ -353,8 +414,8 @@ All of these are on by default.
 | `retry`             | `#[pgkit::retry]` and `retry::run` (needs Tokio)                   |
 | `serde`             | `Serialize` / `Deserialize` for `OrderByDirection` and similar     |
 
-The query builder, `ordering`, `projection` and `full_text_search` are always
-available. To use only the query builder:
+The query builder, `ordering`, `projection`, `pool` and `full_text_search`
+are always available. To use only the query builder:
 
 ```toml
 pgkit = { version = "0.1", default-features = false }

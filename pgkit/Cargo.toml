@@ -31,10 +31,10 @@ rust_decimal = { version = "1.39.0", features = ["macros", "serde"], optional = 
 thiserror    = { version = "2.0", optional = true }
 # Only `tokio::time::sleep` is used (for retry backoff).
 tokio        = { version = "1.42.0", features = ["time"], optional = true }
-tracing      = { version = "0.1.41", optional = true }
+tracing      = { version = "0.1.41" }
 
 [dev-dependencies]
-sqlx         = { version = "0.9", default-features = false, features = ["derive"] }
+sqlx         = { version = "0.9", default-features = false, features = ["derive", "macros", "migrate", "runtime-tokio"] }
 tokio        = { version = "1.42.0", features = ["macros", "rt"] }
 async-trait  = "0.1.88"
 chrono       = "0.4.40"
@@ -47,4 +47,4 @@ pagination          = ["offset-pagination", "cursor-pagination"]
 offset-pagination   = []
 cursor-pagination   = ["serde", "dep:base64", "dep:sha2", "dep:uuid", "dep:thiserror", "dep:serde_json", "dep:chrono", "dep:rust_decimal"]
 repository-error    = ["dep:thiserror", "cursor-pagination"]
-retry               = ["repository-error", "dep:tokio", "dep:tracing"]
+retry               = ["repository-error", "dep:tokio"]

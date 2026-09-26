@@ -11,6 +11,7 @@
 )]
 
 pub mod full_text_search;
+pub mod pool;
 pub mod projection;
 pub mod query_builder;
 pub mod types;

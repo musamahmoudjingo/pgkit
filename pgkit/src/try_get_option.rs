@@ -8,7 +8,7 @@ use sqlx::{Decode, Error, Row, Type, postgres::PgRow};
 /// - `Err(_)`: any other decode error.
 ///
 /// To preserve the SQL-NULL distinction for nullable columns, callers pass
-/// `Option<T>` as the type parameter and store the result as `Option<Option<T>>`. 
+/// `Option<T>` as the type parameter and store the result as `Option<Option<T>>`.
 /// For non-nullable columns, pass `T` directly.
 pub fn try_get_option<'r, T>(row: &'r PgRow, name: &str) -> sqlx::Result<Option<T>>
 where
