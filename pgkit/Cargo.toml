@@ -18,7 +18,7 @@ workspace = true
 [dependencies]
 # Exact pin: the macros emit paths into `pgkit::__private`, so the two crates
 # only work as a matched pair. Bump both together.
-pgkit-derive  = { path = "../pgkit-derive", version = "=0.1.0" }
+pgkit-derive  = { path = "../pgkit-derive", version = "=0.2.0" }
 sqlx         = { version = "0.9", default-features = false, features = ["postgres", "json", "chrono", "uuid", "rust_decimal"] }
 strum        = { version = "0.28", features = ["derive"] }
 serde        = { version = "1.0", features = ["derive"], optional = true }
