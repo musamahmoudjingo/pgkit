@@ -4,9 +4,9 @@ use sqlx::{Encode, Postgres, QueryBuilder, Type};
 use super::super::operators::*;
 use super::some_where_condition::apply_conditions;
 use super::{
-    SomeWhereCondition, WhereAll, WhereAny, WhereBetween, WhereCondition, WhereExists, WhereGroup,
-    WhereIn, WhereNotBetween, WhereNotExists, WhereNotIn, WhereNotNull, WhereNull, WhereRaw,
-    WhereRawFn,
+    SomeWhereCondition, WhereAll, WhereAny, WhereBetween, WhereColumnPair, WhereCondition,
+    WhereExists, WhereGroup, WhereIn, WhereNotBetween, WhereNotExists, WhereNotIn, WhereNotNull,
+    WhereNull, WhereRaw, WhereRawFn,
 };
 use crate::types::ColumnRef;
 
@@ -148,6 +148,70 @@ impl<'a> WhereBuilder<'a> {
             column: column.into(),
             operator,
             value,
+            separator,
+        }));
+
+        self
+    }
+
+    /// Adds a WHERE condition comparing a column to *another column*, with
+    /// an `AND` separator if needed. Nothing is bound as a parameter — both
+    /// sides render as column references. This is the method for join
+    /// conditions and same-row comparisons; `where_col` would bind the right
+    /// side as a value and compare against its literal text instead.
+    ///
+    /// # Example
+    /// ```
+    /// # use pgkit::query_builder::WhereBuilder;
+    /// # use pgkit::query_builder::operators::*;
+    /// # let mut query = sqlx::QueryBuilder::<sqlx::Postgres>::new("");
+    /// WhereBuilder::new()
+    ///     .where_col_matches_col("l.order_id", Equal, "o.id")
+    ///     .where_col_matches_col("updated_at", GreaterThan, "created_at")
+    ///     .apply_to(&mut query);
+    /// assert_eq!(query.sql(), " WHERE l.order_id = o.id AND updated_at > created_at");
+    /// ```
+    pub fn where_col_matches_col<L: Into<ColumnRef>, R: Into<ColumnRef>>(
+        mut self,
+        left: L,
+        operator: ComparisonOperator,
+        right: R,
+    ) -> Self {
+        let separator = self.and();
+        self.conditions.push(Box::new(WhereColumnPair {
+            left: left.into(),
+            operator,
+            right: right.into(),
+            separator,
+        }));
+
+        self
+    }
+
+    /// [`WhereBuilder::where_col_matches_col`] with an `OR` separator.
+    ///
+    /// # Example
+    /// ```
+    /// # use pgkit::query_builder::WhereBuilder;
+    /// # use pgkit::query_builder::operators::*;
+    /// # let mut query = sqlx::QueryBuilder::<sqlx::Postgres>::new("");
+    /// WhereBuilder::new()
+    ///     .where_eq("status", "active")
+    ///     .or_where_col_matches_col("updated_at", GreaterThan, "created_at")
+    ///     .apply_to(&mut query);
+    /// assert_eq!(query.sql(), " WHERE status = $1 OR updated_at > created_at");
+    /// ```
+    pub fn or_where_col_matches_col<L: Into<ColumnRef>, R: Into<ColumnRef>>(
+        mut self,
+        left: L,
+        operator: ComparisonOperator,
+        right: R,
+    ) -> Self {
+        let separator = self.or();
+        self.conditions.push(Box::new(WhereColumnPair {
+            left: left.into(),
+            operator,
+            right: right.into(),
             separator,
         }));
 
@@ -1505,12 +1569,12 @@ impl<'a> WhereBuilder<'a> {
     ///     "SELECT * FROM orders o JOIN line_items l ON ",
     /// );
     /// WhereBuilder::new()
-    ///     .where_col("l.order_id", Equal, "o.id")
+    ///     .where_col_matches_col("l.order_id", Equal, "o.id")
     ///     .where_eq("l.refunded", false)
     ///     .apply_predicate(&mut query);
     /// assert_eq!(
     ///     query.sql(),
-    ///     "SELECT * FROM orders o JOIN line_items l ON l.order_id = $1 AND l.refunded = $2"
+    ///     "SELECT * FROM orders o JOIN line_items l ON l.order_id = o.id AND l.refunded = $1"
     /// );
     /// ```
     pub fn apply_predicate(self, query: &mut QueryBuilder<Postgres>) -> bool {
@@ -1591,6 +1655,36 @@ mod tests {
             .apply_to(&mut query);
 
         assert_eq!(query.sql(), " WHERE name = $1 OR age > $2 OR active <> $3");
+    }
+
+    /// Both sides render as columns; nothing is bound.
+    #[test]
+    fn where_col_matches_col_binds_nothing() {
+        let mut query = sqlx::QueryBuilder::new("");
+
+        WhereBuilder::new()
+            .where_col_matches_col("l.order_id", Equal, "o.id")
+            .where_eq("l.refunded", false)
+            .apply_to(&mut query);
+
+        assert_eq!(query.sql(), " WHERE l.order_id = o.id AND l.refunded = $1");
+    }
+
+    /// Mixing AND and OR still parenthesizes so SQL follows call order.
+    #[test]
+    fn where_col_matches_col_mixed_with_or_parenthesizes() {
+        let mut query = sqlx::QueryBuilder::new("");
+
+        WhereBuilder::new()
+            .where_col_matches_col("updated_at", GreaterThan, "created_at")
+            .or_where_col_matches_col("deleted_at", NotEqual, "created_at")
+            .where_eq("active", true)
+            .apply_to(&mut query);
+
+        assert_eq!(
+            query.sql(),
+            " WHERE ((updated_at > created_at OR deleted_at <> created_at) AND active = $1)"
+        );
     }
 
     #[test]
