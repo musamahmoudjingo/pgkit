@@ -14,9 +14,12 @@ use crate::types::{ColumnRef, ColumnTypeInfo, DatabaseTableColumn};
 /// the hand-rolled counterpart to
 /// [`crate::query_builder::SelectBuilder::cursor_paginate`].
 pub trait SqlxCursorPaginationExt<'a>: Sized {
-    /// Apply cursor pagination: appends ` AND <keyset_predicate>` (if the
-    /// cursor is present), then ` ORDER BY <col>, <pk>` with matching
+    /// Apply cursor pagination: appends the keyset predicate (if a cursor
+    /// is present), then ` ORDER BY <col>, <pk>` with matching
     /// `NULLS FIRST/LAST`, then ` LIMIT $n`.
+    ///
+    /// The predicate is joined with `AND` when the query already has a
+    /// `WHERE` and opens one when it does not.
     fn cursor_paginate<T, Id>(&mut self, pagination: &CursorPagination<T, Id>) -> &mut Self
     where
         T: DatabaseTableColumn + ColumnTypeInfo + Copy,
@@ -40,7 +43,9 @@ impl<'a> SqlxCursorPaginationExt<'a> for QueryBuilder<Postgres> {
                 Some(CursorValue::Enum(_)) => Some(col.pg_type_info()),
                 _ => None,
             };
-            self.push(" AND ");
+
+            let has_where = self.sql().as_ref().to_ascii_uppercase().contains(" WHERE ");
+            self.push(if has_where { " AND " } else { " WHERE " });
             push_keyset_predicate(
                 self,
                 &col_ref,
@@ -119,5 +124,70 @@ mod tests {
              (geo_countries.name > $1 OR (geo_countries.name = $2 AND geo_countries.id > $3) OR geo_countries.name IS NULL) \
              ORDER BY geo_countries.name ASC NULLS LAST, geo_countries.id ASC NULLS LAST LIMIT $4"
         );
+    }
+
+    /// A query with no `WHERE` must get one, not a dangling ` AND `.
+    #[test]
+    fn a_query_without_a_where_gets_one() {
+        let cursor = CursorPayload::with_filter_sig(
+            CountriesColumn::Name,
+            OrderByDirection::Asc,
+            7_i32,
+            Some(CursorValue::Text("Kenya".to_string())),
+            None,
+        )
+        .encode()
+        .unwrap();
+        let pagination =
+            CursorPagination::<CountriesColumn, i32>::with_validated_column_selection::<()>(
+                OrderBy::new(CountriesColumn::Name, OrderByDirection::Asc),
+                20,
+                Some(cursor),
+                None,
+            )
+            .unwrap();
+
+        let mut qb = sqlx::QueryBuilder::<Postgres>::new("SELECT * FROM geo_countries");
+        qb.cursor_paginate(&pagination);
+        let sql = qb.sql().as_ref().to_string();
+
+        assert!(
+            sql.contains("geo_countries WHERE ("),
+            "the predicate must open the clause: {sql}",
+        );
+        assert!(
+            !sql.contains("geo_countries AND"),
+            "must not join onto a clause that is not there: {sql}",
+        );
+    }
+
+    /// A query that already has a `WHERE` is still joined with `AND`.
+    #[test]
+    fn a_query_with_a_where_is_joined_with_and() {
+        let cursor = CursorPayload::with_filter_sig(
+            CountriesColumn::Name,
+            OrderByDirection::Asc,
+            7_i32,
+            Some(CursorValue::Text("Kenya".to_string())),
+            None,
+        )
+        .encode()
+        .unwrap();
+        let pagination =
+            CursorPagination::<CountriesColumn, i32>::with_validated_column_selection::<()>(
+                OrderBy::new(CountriesColumn::Name, OrderByDirection::Asc),
+                20,
+                Some(cursor),
+                None,
+            )
+            .unwrap();
+
+        let mut qb = sqlx::QueryBuilder::<Postgres>::new(
+            "SELECT * FROM geo_countries WHERE deleted_at IS NULL",
+        );
+        qb.cursor_paginate(&pagination);
+        let sql = qb.sql().as_ref().to_string();
+
+        assert!(sql.contains("IS NULL AND ("), "{sql}");
     }
 }
