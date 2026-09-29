@@ -207,6 +207,24 @@ Column and table names passed as strings are inserted into the SQL as written.
 Only pass names you control. Never build them from user input. Values are
 always bound as parameters.
 
+Because names go in as written, Postgres lowercases them unless quoted. For a
+mixed-case or reserved-word name, `quote_ident!` quotes it at compile time:
+
+```rust
+use pgkit::query_builder::{Query, WhereOps};
+use pgkit::quote_ident;
+
+let query = Query::select()
+    .from(quote_ident!("User"))
+    .where_eq(quote_ident!("userName"), "musa")
+    .build();
+
+assert_eq!(query.sql(), r#"SELECT * FROM "User" WHERE "userName" = $1"#);
+```
+
+`quote_ident!("u", "userName")` renders a qualified `"u"."userName"`. The name
+must be a string literal without a `"` in it.
+
 ## Pagination
 
 Offset pagination:

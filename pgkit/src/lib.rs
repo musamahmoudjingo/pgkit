@@ -53,5 +53,7 @@ pub use try_get_option::try_get_option;
 
 pub mod ordering;
 
+mod quote_ident;
+
 #[cfg(any(feature = "offset-pagination", feature = "cursor-pagination"))]
 pub mod pagination;
