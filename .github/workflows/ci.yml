@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: fmt, clippy, tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: pgkit
+          POSTGRES_PASSWORD: pgkit
+          POSTGRES_DB: pgkit
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U pgkit"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://pgkit:pgkit@localhost:5432/pgkit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --check
+      - run: cargo clippy --workspace --all-features -- -D warnings
+      - run: cargo test --workspace --all-features
+
+  features:
+    name: feature combinations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # Each feature must compile on its own; the ones left out are implied
+      # by the ones listed (pagination, retry pull their dependencies).
+      - run: |
+          for features in "" "repository-error" "retry" "cursor-pagination" \
+                          "offset-pagination" "partial-row" "db-init" \
+                          "repository-error,cursor-pagination"; do
+            echo "::group::features=[$features]"
+            cargo check -p pgkit --no-default-features --features "$features"
+            echo "::endgroup::"
+          done
+
+  msrv:
+    name: rust-version check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.94"
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check --workspace --all-features
