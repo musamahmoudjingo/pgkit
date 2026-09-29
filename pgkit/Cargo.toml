@@ -18,7 +18,7 @@ workspace = true
 [dependencies]
 # the macros generate code that names pgkit's items, so the
 # two crates must be matched correctly.
-pgkit-derive  = { path = "../pgkit-derive", version = "=0.3.0" }
+pgkit-derive  = { path = "../pgkit-derive", version = "=0.4.0" }
 sqlx         = { version = "0.9", default-features = false, features = ["postgres"] }
 strum        = { version = "0.28", features = ["derive"] }
 serde        = { version = "1.0", features = ["derive"], optional = true }
