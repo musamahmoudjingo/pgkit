@@ -22,6 +22,7 @@ use sqlx::Error as SqlxError;
 use sqlx::error::ErrorKind;
 
 use super::retry_safety::RetrySafety;
+#[cfg(feature = "cursor-pagination")]
 use crate::pagination::cursor::CursorPaginationError;
 
 /// A type alias for repository results.
@@ -135,6 +136,7 @@ pub enum RepositoryError {
     /// transported through `RepositoryError` so repository methods that call
     /// `CursorPagination::try_new` / `into_response_parts` can use `?`.
     /// Callers decide how to handle each variant.
+    #[cfg(feature = "cursor-pagination")]
     #[error("cursor pagination error: {0}")]
     CursorPagination(#[from] CursorPaginationError),
 
@@ -285,6 +287,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "cursor-pagination")]
     #[test]
     fn cursor_pagination_error_converts_via_from() {
         let err = RepositoryError::from(CursorPaginationError::IdColumnWasNotProjected);

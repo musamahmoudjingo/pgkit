@@ -502,7 +502,7 @@ All of these are on by default, except `db-init`.
 | `offset-pagination` | `pagination::offset`                                               |
 | `cursor-pagination` | `pagination::cursor`                                               |
 | `pagination`        | Both pagination features                                           |
-| `repository-error`  | `errors::RepositoryError`                                          |
+| `repository-error`  | `errors::RepositoryError`; its `CursorPagination` variant only exists with `cursor-pagination` |
 | `retry`             | `#[pgkit::retry]` and `retry::run` (needs Tokio)                   |
 | `serde`             | `Serialize` / `Deserialize` for `OrderByDirection` and similar     |
 | `db-init`           | `migrator!` / `seeder!` and `db_init` — off by default             |

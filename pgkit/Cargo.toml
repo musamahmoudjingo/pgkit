@@ -19,7 +19,7 @@ workspace = true
 # the macros generate code that names pgkit's items, so the
 # two crates must be matched correctly.
 pgkit-derive  = { path = "../pgkit-derive", version = "=0.3.0" }
-sqlx         = { version = "0.9", default-features = false, features = ["postgres", "json", "chrono", "uuid", "rust_decimal"] }
+sqlx         = { version = "0.9", default-features = false, features = ["postgres"] }
 strum        = { version = "0.28", features = ["derive"] }
 serde        = { version = "1.0", features = ["derive"], optional = true }
 serde_json   = { version = "1.0", default-features = false, features = ["std"], optional = true }
@@ -45,7 +45,7 @@ partial-row         = []
 serde               = ["dep:serde"]
 pagination          = ["offset-pagination", "cursor-pagination"]
 offset-pagination   = []
-cursor-pagination   = ["serde", "dep:base64", "dep:sha2", "dep:uuid", "dep:thiserror", "dep:serde_json", "dep:chrono", "dep:rust_decimal"]
-repository-error    = ["dep:thiserror", "cursor-pagination"]
+cursor-pagination   = ["serde", "dep:base64", "dep:sha2", "dep:uuid", "dep:thiserror", "dep:serde_json", "dep:chrono", "dep:rust_decimal", "sqlx/json", "sqlx/chrono", "sqlx/uuid", "sqlx/rust_decimal"]
+repository-error    = ["dep:thiserror"]
 retry               = ["repository-error", "dep:tokio"]
 db-init             = ["sqlx/migrate"]
