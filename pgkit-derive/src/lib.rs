@@ -1,5 +1,6 @@
 use proc_macro::TokenStream;
 
+mod db_init;
 mod pg_kit;
 mod retry;
 
@@ -159,4 +160,69 @@ pub fn derive_pg_kit(input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn retry(attr: TokenStream, item: TokenStream) -> TokenStream {
     retry::expand(attr, item)
+}
+
+/// Embeds a project's migrations as a `Vec<sqlx::migrate::Migration>`.
+///
+/// Takes the scan root as a string literal, relative to `CARGO_MANIFEST_DIR`,
+/// and walks it recursively: every `.sql` file directly inside a folder named
+/// `migrations` is a migration, at any depth. The layout around those folders
+/// is yours — one flat folder or one per module both work:
+///
+/// ```text
+/// src/
+/// ├── billing/
+/// │   └── db/migrations/20240101120000_create_invoices.up.sql
+/// └── users/
+///     └── db/migrations/20240102090000_create_users.up.sql
+/// ```
+///
+/// Each file must be named `<14-digit version>_<name>.up.sql` (the version is
+/// the timestamp `sqlx migrate add` generates); versions must be unique across
+/// the whole tree. A file starting with `-- no-transaction` runs outside a
+/// transaction.
+/// The SQL is embedded with `include_str!`, so the binary needs no files at
+/// runtime, and each migration is built the way `sqlx::migrate!` builds it,
+/// so checksums of applied migrations match.
+///
+/// A new file only re-expands the macro if the crate's `build.rs` watches the
+/// tree: `println!("cargo::rerun-if-changed=src");`.
+#[proc_macro]
+pub fn migrations(input: TokenStream) -> TokenStream {
+    db_init::migrations(input)
+}
+
+/// [`migrations!`] wrapped in a ready-to-run `sqlx::migrate::Migrator`.
+///
+/// ```ignore
+/// pgkit::migrator!("src").run(&pool).await?;
+/// ```
+#[proc_macro]
+pub fn migrator(input: TokenStream) -> TokenStream {
+    db_init::migrator(input)
+}
+
+/// Embeds a project's seeds as a `&'static [pgkit::db_init::seeding::Seed]`.
+///
+/// Takes the scan root as a string literal, relative to `CARGO_MANIFEST_DIR`,
+/// and walks it recursively: every `.sql` file directly inside a folder named
+/// `seeds` is a seed, at any depth. Naming is not enforced; files run in
+/// path order, so a zero-padded number prefix (`001_roles.sql`,
+/// `002_users.sql`) is the recommended way to control the order within a
+/// folder. The expression is const, so it can sit in a `static`.
+///
+/// The same `build.rs` note as [`migrations!`] applies.
+#[proc_macro]
+pub fn seeds(input: TokenStream) -> TokenStream {
+    db_init::seeds(input)
+}
+
+/// [`seeds!`] wrapped in a ready-to-run `pgkit::db_init::seeding::Seeder`.
+///
+/// ```ignore
+/// pgkit::seeder!("src").run(&pool).await?;
+/// ```
+#[proc_macro]
+pub fn seeder(input: TokenStream) -> TokenStream {
+    db_init::seeder(input)
 }

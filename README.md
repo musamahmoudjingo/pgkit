@@ -33,6 +33,9 @@ You write the query, pgkit helps you build it safely and sqlx runs it.
 - **`RepositoryError`** maps Postgres errors to variants like
   `UniqueViolation` and `ForeignKeyViolation`, with the constraint name
   attached.
+- **Migrations and seeds**: `migrator!` and `seeder!` find every
+  `migrations/` and `seeds/` folder under a path at compile time and embed
+  the SQL in the binary, so deploys ship no `.sql` files.
 - **Full-text search helper** that turns user input into a safe `to_tsquery`
   string.
 - **Connection pool helper** that opens a `PgPool` with production-safe
@@ -301,6 +304,95 @@ The function must be `async` and return `RepositoryResult<T>`. It also works
 inside `#[async_trait]` impls. Backoff sleeps use `tokio::time::sleep`, so the
 `retry` feature requires a Tokio runtime.
 
+## Embedded migrations and seeds
+
+The `db-init` feature (off by default) discovers, validates and embeds a
+project's SQL at compile time. The convention is, any folder named `migrations`
+holds migrations, any folder named `seeds` holds seeds, at any depth. How you
+arrange the folders around them is up to you. One flat pair at the root, or
+one pair per module:
+
+```text
+src/
+├── billing/
+│   └── db/
+│       ├── migrations/
+│       │   └── 20240101120000_create_invoices.up.sql
+│       └── seeds/
+│           └── 001_default_plans.sql
+└── users/
+    └── db/
+        └── migrations/
+            └── 20240102090000_create_users.up.sql
+```
+
+```rust,ignore
+let pool = sqlx::PgPool::connect(&database_url).await?;
+
+pgkit::migrator!("src").run(&pool).await?; // an sqlx::migrate::Migrator
+pgkit::seeder!("src").run(&pool).await?;   // a pgkit::db_init::seeding::Seeder
+```
+
+Each macro takes one path, relative to the crate's `Cargo.toml`, and walks it
+recursively. The SQL is embedded with `include_str!`, so the compiled binary
+needs no `.sql` files at runtime, and each migration is built the way
+`sqlx::migrate!` builds it, so the checksums recorded in `_sqlx_migrations`
+match.
+
+The file rules, enforced at compile time so a bad file fails the build
+instead of a deploy:
+
+- A migration is `<version>_<name>.up.sql`, where the version is the
+  14-digit timestamp `sqlx migrate add` generates. Versions must be unique
+  across the whole tree; the embedded set is sorted by version.
+- A migration starting with the line `-- no-transaction` runs outside a
+  transaction (for statements such as `CREATE INDEX CONCURRENTLY`).
+
+Seed names are not enforced. Seeds run in path order, so the recommended
+naming is a zero-padded number prefix (`001_roles.sql`, `002_users.sql`) to
+make the order within a folder explicit.
+
+Seeds have no `_sqlx_migrations`-style tracking: `Seeder::run` executes every
+script on every run, so write each script to be a no-op once its data exists:
+
+```sql
+INSERT INTO plans (code, name)
+SELECT 'standard', 'Standard'
+WHERE NOT EXISTS (SELECT 1 FROM plans);
+```
+
+One failing script does not stop the rest: `Seeder::run` logs each failure
+through `tracing`, runs the remaining scripts, and returns every failure
+together as one `SeedErrors` list:
+
+```rust,ignore
+if let Err(errors) = pgkit::seeder!("src").run(&pool).await {
+    for error in &errors.0 {
+        // "error executing seed billing/db/seeds/001_defaults.sql: ..."
+        eprintln!("{error}");
+    }
+}
+```
+
+The runtime types live in `pgkit::db_init::seeding`: `Seeder`, `Seed`
+(the embedded script — its `path` relative to the scan root, and its `sql`),
+`SeedError` and `SeedErrors`.
+
+When you want to compose things yourself, `migrations!` gives you the raw
+`Vec<sqlx::migrate::Migration>` and `seeds!` the `&'static [Seed]` that
+the two wrapper macros are built from.
+
+One caveat comes with any file-embedding macro, and sqlx documents the same
+for `migrate!`: editing an embedded file recompiles automatically, but
+_adding or removing_ a file does not — the cached expansion is reused. Give
+the crate a two-line `build.rs` so the tree is watched:
+
+```rust,ignore
+fn main() {
+    println!("cargo::rerun-if-changed=src");
+}
+```
+
 ## Errors
 
 `RepositoryError` converts from `sqlx::Error` and sorts Postgres failures into
@@ -402,7 +494,7 @@ async fn migration_pool() -> Result<sqlx::PgPool, sqlx::Error> {
 
 ## Feature flags
 
-All of these are on by default.
+All of these are on by default, except `db-init`.
 
 | Feature             | Provides                                                           |
 | ------------------- | ------------------------------------------------------------------ |
@@ -413,6 +505,7 @@ All of these are on by default.
 | `repository-error`  | `errors::RepositoryError`                                          |
 | `retry`             | `#[pgkit::retry]` and `retry::run` (needs Tokio)                   |
 | `serde`             | `Serialize` / `Deserialize` for `OrderByDirection` and similar     |
+| `db-init`           | `migrator!` / `seeder!` and `db_init` — off by default             |
 
 The query builder, `ordering`, `projection`, `pool` and `full_text_search`
 are always available. To use only the query builder:

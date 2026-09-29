@@ -16,6 +16,11 @@ pub mod projection;
 pub mod query_builder;
 pub mod types;
 
+#[cfg(feature = "db-init")]
+pub mod db_init;
+#[cfg(feature = "db-init")]
+pub use pgkit_derive::{migrations, migrator, seeder, seeds};
+
 #[cfg(feature = "repository-error")]
 pub mod errors;
 
